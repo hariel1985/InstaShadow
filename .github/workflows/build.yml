@@ -1,0 +1,130 @@
+name: Build InstaShadow
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone JUCE
+        run: git clone --depth 1 https://github.com/juce-framework/JUCE.git ../JUCE
+
+      - name: Configure CMake
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build Release
+        run: cmake --build build --config Release
+
+      - name: Package VST3
+        run: Compress-Archive -Path "build/InstaShadow_artefacts/Release/VST3/InstaShadow.vst3" -DestinationPath "InstaShadow-VST3-Win64.zip"
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: InstaShadow-VST3-Win64
+          path: InstaShadow-VST3-Win64.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone JUCE
+        run: git clone --depth 1 https://github.com/juce-framework/JUCE.git ../JUCE
+
+      - name: Configure CMake (Universal Binary)
+        run: cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Build Release
+        run: cmake --build build --config Release
+
+      - name: Package VST3
+        working-directory: build/InstaShadow_artefacts/Release
+        run: zip -r $GITHUB_WORKSPACE/InstaShadow-VST3-macOS.zip VST3/InstaShadow.vst3
+
+      - name: Package AU
+        working-directory: build/InstaShadow_artefacts/Release
+        run: zip -r $GITHUB_WORKSPACE/InstaShadow-AU-macOS.zip AU/InstaShadow.component
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: InstaShadow-VST3-macOS
+          path: InstaShadow-VST3-macOS.zip
+
+      - name: Upload AU
+        uses: actions/upload-artifact@v4
+        with:
+          name: InstaShadow-AU-macOS
+          path: InstaShadow-AU-macOS.zip
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libasound2-dev \
+            libfreetype6-dev libx11-dev libxrandr-dev libxcursor-dev \
+            libxinerama-dev libwebkit2gtk-4.1-dev libcurl4-openssl-dev
+
+      - name: Clone JUCE
+        run: git clone --depth 1 https://github.com/juce-framework/JUCE.git ../JUCE
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Release
+        run: cmake --build build --config Release --parallel $(nproc)
+
+      - name: Package VST3
+        working-directory: build/InstaShadow_artefacts/Release
+        run: zip -r $GITHUB_WORKSPACE/InstaShadow-VST3-Linux-x64.zip VST3/InstaShadow.vst3
+
+      - name: Package LV2
+        working-directory: build/InstaShadow_artefacts/Release
+        run: zip -r $GITHUB_WORKSPACE/InstaShadow-LV2-Linux-x64.zip LV2/InstaShadow.lv2
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: InstaShadow-VST3-Linux-x64
+          path: InstaShadow-VST3-Linux-x64.zip
+
+      - name: Upload LV2
+        uses: actions/upload-artifact@v4
+        with:
+          name: InstaShadow-LV2-Linux-x64
+          path: InstaShadow-LV2-Linux-x64.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/InstaShadow-VST3-Win64/InstaShadow-VST3-Win64.zip
+            artifacts/InstaShadow-VST3-macOS/InstaShadow-VST3-macOS.zip
+            artifacts/InstaShadow-AU-macOS/InstaShadow-AU-macOS.zip
+            artifacts/InstaShadow-VST3-Linux-x64/InstaShadow-VST3-Linux-x64.zip
+            artifacts/InstaShadow-LV2-Linux-x64/InstaShadow-LV2-Linux-x64.zip
+          generate_release_notes: true
