@@ -37,6 +37,8 @@ public:
     // --- Metering (audio → GUI) ---
     std::atomic<float> optoGrDb         { 0.0f };
     std::atomic<float> vcaGrDb          { 0.0f };
+    std::atomic<float> inputLevelL      { 0.0f };
+    std::atomic<float> inputLevelR      { 0.0f };
     std::atomic<float> outputLevelL     { 0.0f };
     std::atomic<float> outputLevelR     { 0.0f };
 

@@ -41,20 +41,50 @@ InstaShadowEditor::InstaShadowEditor (InstaShadowProcessor& p)
     addAndMakeVisible (transformerPanel);
     addAndMakeVisible (outputPanel);
 
-    // Needle VU meters
-    vuMeterL.setLabel ("L");
-    addAndMakeVisible (vuMeterL);
-    vuMeterR.setLabel ("R");
-    addAndMakeVisible (vuMeterR);
+    // Needle meters (default: GR)
+    needleMeterL.setLabel ("OPTICAL GR");
+    needleMeterL.setMode (NeedleVuMeter::GR);
+    addAndMakeVisible (needleMeterL);
+    needleMeterR.setLabel ("DISCRETE GR");
+    needleMeterR.setMode (NeedleVuMeter::GR);
+    addAndMakeVisible (needleMeterR);
 
-    // GR meters (compact bars)
-    optoGrMeter.setLabel ("OPTICAL GR");
-    optoGrMeter.setBarColour (juce::Colour (0xffff8833));
-    addAndMakeVisible (optoGrMeter);
+    // Bar meters (default: input level)
+    barMeterL.setLabel ("INPUT L");
+    barMeterL.setBarColour (juce::Colour (0xff00cc44));
+    addAndMakeVisible (barMeterL);
+    barMeterR.setLabel ("INPUT R");
+    barMeterR.setBarColour (juce::Colour (0xff00cc44));
+    addAndMakeVisible (barMeterR);
 
-    vcaGrMeter.setLabel ("DISCRETE GR");
-    vcaGrMeter.setBarColour (juce::Colour (0xff4488ff));
-    addAndMakeVisible (vcaGrMeter);
+    // Meter swap button
+    meterSwapButton.onClick = [this]
+    {
+        metersSwapped = ! metersSwapped;
+        if (metersSwapped)
+        {
+            needleMeterL.setLabel ("INPUT L");
+            needleMeterL.setMode (NeedleVuMeter::VU);
+            needleMeterR.setLabel ("INPUT R");
+            needleMeterR.setMode (NeedleVuMeter::VU);
+            barMeterL.setLabel ("OPTICAL GR");
+            barMeterL.setBarColour (juce::Colour (0xffff8833));
+            barMeterR.setLabel ("DISCRETE GR");
+            barMeterR.setBarColour (juce::Colour (0xff4488ff));
+        }
+        else
+        {
+            needleMeterL.setLabel ("OPTICAL GR");
+            needleMeterL.setMode (NeedleVuMeter::GR);
+            needleMeterR.setLabel ("DISCRETE GR");
+            needleMeterR.setMode (NeedleVuMeter::GR);
+            barMeterL.setLabel ("INPUT L");
+            barMeterL.setBarColour (juce::Colour (0xff00cc44));
+            barMeterR.setLabel ("INPUT R");
+            barMeterR.setBarColour (juce::Colour (0xff00cc44));
+        }
+    };
+    addAndMakeVisible (meterSwapButton);
 
     syncKnobsToEngine();
     startTimerHz (30);
@@ -116,13 +146,22 @@ void InstaShadowEditor::timerCallback()
 
     auto& eng = processor.getEngine();
 
-    // Needle VU meters
-    vuMeterL.setLevel (eng.outputLevelL.load());
-    vuMeterR.setLevel (eng.outputLevelR.load());
-
-    // GR meters
-    optoGrMeter.setGainReduction (eng.optoGrDb.load());
-    vcaGrMeter.setGainReduction (eng.vcaGrDb.load());
+    if (! metersSwapped)
+    {
+        // Default: needles = GR, bars = input
+        needleMeterL.setGainReduction (eng.optoGrDb.load());
+        needleMeterR.setGainReduction (eng.vcaGrDb.load());
+        barMeterL.setInputLevel (eng.inputLevelL.load());
+        barMeterR.setInputLevel (eng.inputLevelR.load());
+    }
+    else
+    {
+        // Swapped: needles = input, bars = GR
+        needleMeterL.setLevel (eng.inputLevelL.load());
+        needleMeterR.setLevel (eng.inputLevelR.load());
+        barMeterL.setGainReduction (eng.optoGrDb.load());
+        barMeterR.setGainReduction (eng.vcaGrDb.load());
+    }
 
     // Output panel VU
     outputPanel.vuMeter.setLevel (eng.outputLevelL.load(), eng.outputLevelR.load());
@@ -185,20 +224,24 @@ void InstaShadowEditor::resized()
     // Center column: VU meters, GR bars, Transformer, Output — all stacked
     auto centerArea = mainRow;
 
-    // Two needle VU meters side by side (~30%)
+    // Two needle meters side by side (~30%)
     int vuH = (int) (centerArea.getHeight() * 0.30f);
-    auto vuRow = centerArea.removeFromTop (vuH);
-    int vuW = (vuRow.getWidth() - pad) / 2;
-    vuMeterL.setBounds (vuRow.removeFromLeft (vuW));
-    vuRow.removeFromLeft (pad);
-    vuMeterR.setBounds (vuRow);
+    auto needleRow = centerArea.removeFromTop (vuH);
+    int needleW = (needleRow.getWidth() - pad) / 2;
+    needleMeterL.setBounds (needleRow.removeFromLeft (needleW));
+    needleRow.removeFromLeft (pad);
+    needleMeterR.setBounds (needleRow);
     centerArea.removeFromTop (pad);
 
-    // Two GR meter bars (~15%)
-    int grBarH = (int) (centerArea.getHeight() * 0.12f);
-    optoGrMeter.setBounds (centerArea.removeFromTop (grBarH));
+    // Swap button (compact, between needles and bars)
+    meterSwapButton.setBounds (centerArea.removeFromTop (20).reduced (centerArea.getWidth() / 4, 0));
     centerArea.removeFromTop (pad);
-    vcaGrMeter.setBounds (centerArea.removeFromTop (grBarH));
+
+    // Two bar meters (~10%)
+    int barH = (int) (centerArea.getHeight() * 0.10f);
+    barMeterL.setBounds (centerArea.removeFromTop (barH));
+    centerArea.removeFromTop (pad);
+    barMeterR.setBounds (centerArea.removeFromTop (barH));
     centerArea.removeFromTop (pad);
 
     // Transformer + Output side by side in remaining center space

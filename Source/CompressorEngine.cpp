@@ -34,6 +34,13 @@ void CompressorEngine::processBlock (juce::AudioBuffer<float>& buffer)
 
     if (globalBypass.load() || numChannels == 0) return;
 
+    // Measure input level BEFORE any processing
+    inputLevelL.store (buffer.getMagnitude (0, 0, numSamples));
+    if (numChannels > 1)
+        inputLevelR.store (buffer.getMagnitude (1, 0, numSamples));
+    else
+        inputLevelR.store (inputLevelL.load());
+
     // Read parameters once per block
     float optoThresh = optoThresholdDb.load();
     float optoGain   = optoGainDb.load();

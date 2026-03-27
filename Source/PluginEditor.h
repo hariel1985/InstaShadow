@@ -9,7 +9,7 @@
 #include "GRMeter.h"
 #include "NeedleVuMeter.h"
 
-static constexpr const char* kInstaShadowVersion = "v1.0";
+static constexpr const char* kInstaShadowVersion = "v1.1";
 
 class InstaShadowEditor : public juce::AudioProcessorEditor,
                            public juce::Timer
@@ -38,11 +38,15 @@ private:
     OpticalPanel opticalPanel;
     DiscretePanel discretePanel;
 
-    // Center: needle VU meters + GR bars
-    NeedleVuMeter vuMeterL;
-    NeedleVuMeter vuMeterR;
-    GRMeter optoGrMeter;
-    GRMeter vcaGrMeter;
+    // Center: needle meters + bar meters (swappable)
+    NeedleVuMeter needleMeterL;
+    NeedleVuMeter needleMeterR;
+    GRMeter barMeterL;
+    GRMeter barMeterR;
+
+    // Meter swap toggle
+    juce::TextButton meterSwapButton { "GR / INPUT" };
+    bool metersSwapped = false;  // false: needle=GR, bar=input | true: needle=input, bar=GR
 
     // Bottom panels
     TransformerPanel transformerPanel;
