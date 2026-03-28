@@ -64,19 +64,49 @@ public:
         // Always use VU scale — in GR mode the needle just starts at 0 and goes left
         drawVuScale (g, cx, cy, radius, startAngle, endAngle);
 
-        // Needle
+        // Needle with leaf-shaped arrowhead
         {
             float angle = startAngle + needlePos * (endAngle - startAngle);
             float cosA = std::cos (angle);
             float sinA = std::sin (angle);
 
-            g.setColour (juce::Colours::black.withAlpha (0.3f));
-            g.drawLine (cx + 1, cy + 1,
-                       cx + cosA * radius * 0.88f + 1, cy + sinA * radius * 0.88f + 1, 2.0f);
+            float tipX = cx + cosA * radius * 0.88f;
+            float tipY = cy + sinA * radius * 0.88f;
 
+            // Needle shadow
+            g.setColour (juce::Colours::black.withAlpha (0.25f));
+            g.drawLine (cx + 1, cy + 1, tipX + 1, tipY + 1, 1.5f);
+
+            // Needle shaft (thin line from pivot to base of arrowhead)
+            float shaftEnd = radius * 0.65f;
+            float shaftX = cx + cosA * shaftEnd;
+            float shaftY = cy + sinA * shaftEnd;
             g.setColour (juce::Colour (0xff222222));
-            g.drawLine (cx, cy, cx + cosA * radius * 0.88f, cy + sinA * radius * 0.88f, 1.5f);
+            g.drawLine (cx, cy, shaftX, shaftY, 1.2f);
 
+            // Leaf-shaped arrowhead (elongated diamond from shaft end to tip)
+            float leafW = radius * 0.035f;  // half-width of leaf
+            float perpX = -sinA;  // perpendicular to needle direction
+            float perpY = cosA;
+
+            juce::Path leaf;
+            leaf.startNewSubPath (shaftX, shaftY);                                    // base (narrow)
+            leaf.lineTo (cx + cosA * radius * 0.76f + perpX * leafW,
+                        cy + sinA * radius * 0.76f + perpY * leafW);                  // left bulge
+            leaf.lineTo (tipX, tipY);                                                  // tip (narrow)
+            leaf.lineTo (cx + cosA * radius * 0.76f - perpX * leafW,
+                        cy + sinA * radius * 0.76f - perpY * leafW);                  // right bulge
+            leaf.closeSubPath();
+
+            // Shadow
+            g.setColour (juce::Colours::black.withAlpha (0.2f));
+            g.fillPath (leaf, juce::AffineTransform::translation (0.5f, 0.5f));
+
+            // Fill
+            g.setColour (juce::Colour (0xff111111));
+            g.fillPath (leaf);
+
+            // Pivot dot
             g.setColour (juce::Colour (0xff333333));
             g.fillEllipse (cx - 3, cy - 3, 6, 6);
         }
@@ -99,8 +129,10 @@ private:
 
     void applyNeedlePhysics (float target)
     {
-        constexpr float spring  = 0.35f;
-        constexpr float damping = 0.55f;
+        // VU mode: heavier needle, more damping (lazy, smooth movement)
+        // GR mode: lighter needle, less damping (responsive to compression changes)
+        float spring  = (mode == VU) ? 0.12f : 0.35f;
+        float damping = (mode == VU) ? 0.70f : 0.55f;
 
         float force = spring * (target - needlePos);
         needleVelocity = needleVelocity * (1.0f - damping) + force;

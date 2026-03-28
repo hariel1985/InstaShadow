@@ -14,24 +14,24 @@ The optical stage provides smooth, program-dependent compression with a natural 
 
 ## Download
 
-**[Latest Release: v1.0](https://github.com/hariel1985/InstaShadow/releases/tag/v1.0)**
+**[Latest Release: v1.1](https://github.com/hariel1985/InstaShadow/releases/tag/v1.1)**
 
 ### Windows
 | File | Description |
 |------|-------------|
-| [InstaShadow-VST3-Win64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.0/InstaShadow-VST3-Win64.zip) | VST3 plugin — copy to `C:\Program Files\Common Files\VST3\` |
+| [InstaShadow-VST3-Win64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-VST3-Win64.zip) | VST3 plugin — copy to `C:\Program Files\Common Files\VST3\` |
 
 ### macOS (Universal Binary: Apple Silicon + Intel)
 | File | Description |
 |------|-------------|
-| [InstaShadow-VST3-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.0/InstaShadow-VST3-macOS.zip) | VST3 plugin — copy to `~/Library/Audio/Plug-Ins/VST3/` |
-| [InstaShadow-AU-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.0/InstaShadow-AU-macOS.zip) | Audio Unit — copy to `~/Library/Audio/Plug-Ins/Components/` |
+| [InstaShadow-VST3-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-VST3-macOS.zip) | VST3 plugin — copy to `~/Library/Audio/Plug-Ins/VST3/` |
+| [InstaShadow-AU-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-AU-macOS.zip) | Audio Unit — copy to `~/Library/Audio/Plug-Ins/Components/` |
 
 ### Linux (x64, built on Ubuntu 22.04)
 | File | Description |
 |------|-------------|
-| [InstaShadow-VST3-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.0/InstaShadow-VST3-Linux-x64.zip) | VST3 plugin — copy to `~/.vst3/` |
-| [InstaShadow-LV2-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.0/InstaShadow-LV2-Linux-x64.zip) | LV2 plugin — copy to `~/.lv2/` |
+| [InstaShadow-VST3-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-VST3-Linux-x64.zip) | VST3 plugin — copy to `~/.vst3/` |
+| [InstaShadow-LV2-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-LV2-Linux-x64.zip) | LV2 plugin — copy to `~/.lv2/` |
 
 > **macOS note:** Builds are Universal Binary (Apple Silicon + Intel). Not code-signed — after copying the plugin, remove the quarantine flag in Terminal:
 > ```bash
