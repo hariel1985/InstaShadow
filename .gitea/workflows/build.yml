@@ -1,0 +1,116 @@
+name: Build InstaShadow
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  PLUGIN_NAME: InstaShadow
+  GITEA_URL: https://1git.eu
+  GITEA_REPO: hariel/InstaShadow
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y build-essential cmake git pkg-config \
+            libasound2-dev libfreetype6-dev libx11-dev libxrandr-dev \
+            libxcursor-dev libxinerama-dev libwebkit2gtk-4.1-dev \
+            libcurl4-openssl-dev zip curl
+
+      - name: Clone JUCE
+        run: git clone --depth 1 https://github.com/juce-framework/JUCE.git ../JUCE
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Release
+        run: cmake --build build --config Release --parallel $(nproc)
+
+      - name: Package
+        run: |
+          cd build/${PLUGIN_NAME}_artefacts/Release
+          zip -r ${GITHUB_WORKSPACE}/${PLUGIN_NAME}-VST3-Linux-x64.zip VST3/${PLUGIN_NAME}.vst3
+          cd ${GITHUB_WORKSPACE}
+          zip -j ${PLUGIN_NAME}-Standalone-Linux-x64.zip build/${PLUGIN_NAME}_artefacts/Release/Standalone/${PLUGIN_NAME}
+
+      - name: Upload to Gitea Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          # Find existing release or create new one
+          RELEASE_ID=$(curl -s "${GITEA_URL}/api/v1/repos/${GITEA_REPO}/releases/tags/${TAG}" \
+            -H "Authorization: token ${{ secrets.RELEASE_TOKEN }}" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "None" ] || [ "$RELEASE_ID" = "" ]; then
+            RELEASE_ID=$(curl -s -X POST "${GITEA_URL}/api/v1/repos/${GITEA_REPO}/releases" \
+              -H "Authorization: token ${{ secrets.RELEASE_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\": \"${TAG}\", \"name\": \"${TAG}\", \"body\": \"${PLUGIN_NAME} ${TAG}\"}" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))")
+          fi
+          echo "Release ID: $RELEASE_ID"
+          # Upload assets
+          for f in ${PLUGIN_NAME}-*-Linux-*.zip; do
+            echo "Uploading $f..."
+            curl -s -X POST "${GITEA_URL}/api/v1/repos/${GITEA_REPO}/releases/${RELEASE_ID}/assets?name=$(basename $f)" \
+              -H "Authorization: token ${{ secrets.RELEASE_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$f"
+          done
+
+  build-macos:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone JUCE
+        run: git clone --depth 1 https://github.com/juce-framework/JUCE.git ../JUCE || true
+
+      - name: Configure CMake (Universal)
+        run: cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Build Release
+        run: cmake --build build --config Release
+
+      - name: Package
+        run: |
+          cd build/${PLUGIN_NAME}_artefacts/Release
+          zip -r ${GITHUB_WORKSPACE}/${PLUGIN_NAME}-VST3-macOS.zip VST3/${PLUGIN_NAME}.vst3
+          zip -r ${GITHUB_WORKSPACE}/${PLUGIN_NAME}-AU-macOS.zip AU/${PLUGIN_NAME}.component
+          cd ${GITHUB_WORKSPACE}
+          zip -r ${PLUGIN_NAME}-Standalone-macOS.zip build/${PLUGIN_NAME}_artefacts/Release/Standalone/${PLUGIN_NAME}.app
+
+      - name: Upload to Gitea Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          # Get release ID (created by linux job)
+          RELEASE_ID=$(curl -s "${GITEA_URL}/api/v1/repos/${GITEA_REPO}/releases/tags/${TAG}" \
+            -H "Authorization: token ${{ secrets.RELEASE_TOKEN }}" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))")
+          # If release doesn't exist yet, create it
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "None" ]; then
+            RELEASE_ID=$(curl -s -X POST "${GITEA_URL}/api/v1/repos/${GITEA_REPO}/releases" \
+              -H "Authorization: token ${{ secrets.RELEASE_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\": \"${TAG}\", \"name\": \"${TAG}\", \"body\": \"${PLUGIN_NAME} ${TAG}\"}" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))")
+          fi
+          # Upload assets
+          for f in ${PLUGIN_NAME}-*-macOS*.zip; do
+            curl -s -X POST "${GITEA_URL}/api/v1/repos/${GITEA_REPO}/releases/${RELEASE_ID}/assets?name=$(basename $f)" \
+              -H "Authorization: token ${{ secrets.RELEASE_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$f"
+          done
