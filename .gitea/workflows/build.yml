@@ -42,7 +42,7 @@ jobs:
           cd build/${PLUGIN_NAME}_artefacts/Release
           zip -r ${GITHUB_WORKSPACE}/${PLUGIN_NAME}-VST3-Linux-x64.zip VST3/${PLUGIN_NAME}.vst3
           cd ${GITHUB_WORKSPACE}
-          zip -j ${PLUGIN_NAME}-Standalone-Linux-x64.zip build/${PLUGIN_NAME}_artefacts/Release/Standalone/${PLUGIN_NAME}
+          [ -f "build/${PLUGIN_NAME}_artefacts/Release/Standalone/${PLUGIN_NAME}" ] && zip -j ${PLUGIN_NAME}-Standalone-Linux-x64.zip build/${PLUGIN_NAME}_artefacts/Release/Standalone/${PLUGIN_NAME} || true
 
       - name: Upload to Gitea Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -87,9 +87,9 @@ jobs:
         run: |
           cd build/${PLUGIN_NAME}_artefacts/Release
           zip -r ${GITHUB_WORKSPACE}/${PLUGIN_NAME}-VST3-macOS.zip VST3/${PLUGIN_NAME}.vst3
-          zip -r ${GITHUB_WORKSPACE}/${PLUGIN_NAME}-AU-macOS.zip AU/${PLUGIN_NAME}.component
+          [ -d "AU/${PLUGIN_NAME}.component" ] && zip -r ${GITHUB_WORKSPACE}/${PLUGIN_NAME}-AU-macOS.zip AU/${PLUGIN_NAME}.component || true
           cd ${GITHUB_WORKSPACE}
-          zip -r ${PLUGIN_NAME}-Standalone-macOS.zip build/${PLUGIN_NAME}_artefacts/Release/Standalone/${PLUGIN_NAME}.app
+          [ -d "build/${PLUGIN_NAME}_artefacts/Release/Standalone" ] && zip -r ${PLUGIN_NAME}-Standalone-macOS.zip build/${PLUGIN_NAME}_artefacts/Release/Standalone/${PLUGIN_NAME}.app || true
 
       - name: Upload to Gitea Release
         if: startsWith(github.ref, 'refs/tags/v')
