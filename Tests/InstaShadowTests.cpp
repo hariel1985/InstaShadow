@@ -328,6 +328,182 @@ static void testUserPresets()
     folder.deleteRecursively();
 }
 
+static void testDeletePresets (const juce::File& snapshotFolder)
+{
+    section ("Deleting user presets");
+    auto folder = juce::File::createTempFile ("instashadow-delete");
+    folder.createDirectory();
+    auto fileOf = [&] (const juce::String& name) { return folder.getChildFile (name + PresetManager::fileExtension); };
+    auto indexOf = [] (PresetManager& pm, const juce::String& name)
+    {
+        for (int i = 0; i < (int) pm.getEntries().size(); ++i)
+            if (pm.getEntries()[(size_t) i].name == name) return i;
+        return -1;
+    };
+    const int numFactory = (int) getFactoryPresets().size();
+
+    {
+        InstaShadowProcessor p;
+        auto& pm = p.getPresetManager();
+        pm.setUserPresetFolder (folder);
+        pm.setMoveToTrash (false);
+
+        juce::Random rng (7);
+        for (auto* name : { "A Glue", "B Punch", "C Air" })
+        {
+            randomise (p, rng);
+            pm.saveUserPreset (name);
+        }
+        check ((int) pm.getEntries().size() == numFactory + 3 && pm.getCurrentName() == "C Air", "three user presets saved");
+
+        bool factoryRefused = true;
+        for (int i = 0; i < numFactory; ++i)
+            factoryRefused = factoryRefused && ! pm.canDelete (i) && ! pm.deleteUserPreset (i);
+        check (factoryRefused && (int) pm.getEntries().size() == numFactory + 3, "factory presets can't be deleted");
+        check (! pm.deleteUserPreset (-1) && ! pm.deleteUserPreset (1000), "out-of-range index refused");
+
+        // Another preset: the current one stays current (its index moves up)
+        auto aFile = fileOf ("A Glue");
+        check (pm.deleteUserPreset (indexOf (pm, "A Glue")), "delete a user preset that isn't the current one");
+        check (! aFile.exists() && indexOf (pm, "A Glue") < 0 && pm.findUserPreset (aFile) < 0, "...its file and entry are gone");
+        check (pm.getCurrentName() == "C Air" && pm.getCurrentIndex() == indexOf (pm, "C Air") && ! pm.isModified(),
+               "...the current preset is still current, at its new index");
+
+        // The current preset: the sound stays, without a name
+        std::map<juce::String, float> before;
+        for (auto* id : ParamIDs::all) before[id] = param (p, id).getValue();
+        check (pm.deleteUserPreset (pm.getCurrentIndex()), "delete the current preset");
+        bool same = true;
+        for (auto& [id, norm] : before)
+            if (std::abs (param (p, id.toRawUTF8()).getValue() - norm) > 1e-6f) same = false;
+        check (same, "...the settings don't change");
+        check (! fileOf ("C Air").exists() && pm.getCurrentIndex() == -1 && pm.getCurrentName().isEmpty() && ! pm.isModified(),
+               "...no current preset any more");
+
+        auto mb = getState (p);
+        InstaShadowProcessor q;
+        q.getPresetManager().setUserPresetFolder (folder);
+        q.setStateInformation (mb.getData(), (int) mb.getSize());
+        check (q.getPresetManager().getCurrentName().isEmpty() && q.getPresetManager().getCurrentIndex() == -1
+                 && std::abs (param (q, ParamIDs::optoThreshold).getValue() - before[ParamIDs::optoThreshold]) < 1e-6f,
+               "...a saved state recalls the settings without a preset name");
+
+        pm.loadNext();
+        check (pm.getCurrentIndex() == 0, "next after deleting the current preset goes to the first");
+        check ((int) pm.getEntries().size() == numFactory + 1 && indexOf (pm, "B Punch") == numFactory, "one user preset left");
+
+        // A file removed behind the plugin's back
+        fileOf ("B Punch").deleteFile();
+        check (pm.deleteUserPreset (indexOf (pm, "B Punch")), "deleting a preset whose file is already gone succeeds");
+        check ((int) pm.getEntries().size() == numFactory, "only the factory presets are left");
+    }
+
+    section ("Deleting presets in the editor (confirmation, long list)");
+    {
+        InstaShadowProcessor p;
+        auto& pm = p.getPresetManager();
+        pm.setUserPresetFolder (folder);
+        pm.setMoveToTrash (false);
+        for (int i = 1; i <= 40; ++i)
+            pm.saveUserPreset ("Preset " + juce::String (i).paddedLeft ('0', 2));
+
+        std::unique_ptr<juce::AudioProcessorEditor> base (p.createEditor());
+        auto* ed = dynamic_cast<InstaShadowEditor*> (base.get());
+        auto& panel = ed->getDeletePanel();
+        pump (100);
+
+        ed->askToDeletePreset (2);
+        check (! panel.isVisible(), "no confirmation for a factory preset");
+
+        auto f05 = fileOf ("Preset 05");
+        ed->askToDeletePreset (indexOf (pm, "Preset 05"));
+        check (panel.isVisible() && panel.getPresetName() == "Preset 05", "delete asks for confirmation first");
+        check (f05.existsAsFile(), "...nothing deleted while it asks");
+        panel.cancel();
+        check (! panel.isVisible() && f05.existsAsFile() && indexOf (pm, "Preset 05") >= 0, "Cancel keeps the preset");
+
+        ed->askToDeletePreset (indexOf (pm, "Preset 05"));
+        check (panel.keyPressed (juce::KeyPress (juce::KeyPress::escapeKey)) && ! panel.isVisible() && f05.existsAsFile(),
+               "Escape keeps the preset");
+
+        ed->askToDeletePreset (indexOf (pm, "Preset 05"));
+        panel.confirm();
+        check (! panel.isVisible() && ! f05.exists() && indexOf (pm, "Preset 05") < 0, "Delete removes it");
+
+        auto f06 = fileOf ("Preset 06");
+        ed->askToDeletePreset (indexOf (pm, "Preset 06"));
+        check (panel.keyPressed (juce::KeyPress (juce::KeyPress::returnKey)) && ! f06.exists(), "Return confirms");
+
+        // The list changes while it asks: the right file is still the one deleted
+        ed->askToDeletePreset (indexOf (pm, "Preset 20"));
+        pm.saveUserPreset ("Preset 00");   // shifts every user preset down by one
+        panel.confirm();
+        check (! fileOf ("Preset 20").exists() && fileOf ("Preset 21").existsAsFile() && fileOf ("Preset 19").existsAsFile(),
+               "the file asked about is the one deleted, even if the list changed");
+        check ((int) pm.getEntries().size() == numFactory + 38, "38 user presets left");
+
+        // The menu with a long list stays inside the editor and scrolls there
+        // (JUCE places menus relative to a screen; a process without one, e.g. started over ssh on a Mac, can't open them)
+        const auto& content = ed->getContent();
+        if (juce::Desktop::getInstance().getDisplays().displays.isEmpty())
+            std::cout << "  info  no screen available: preset menu checks skipped" << std::endl;
+        else
+        {
+            juce::Array<juce::Component*> childrenBefore;
+            for (auto* c : content.getChildren()) childrenBefore.add (c);
+            auto desktopBefore = juce::Desktop::getInstance().getNumComponents();
+            ed->showPresetMenu();   // (checked right away: a background test process closes menus on its next tick)
+            juce::Component* menuWindow = nullptr;
+            for (auto* c : content.getChildren())
+                if (! childrenBefore.contains (c)) menuWindow = c;
+            check (menuWindow != nullptr && menuWindow->isVisible(), "the preset menu opens inside the editor");
+            check (juce::Desktop::getInstance().getNumComponents() == desktopBefore, "...not as a separate window");
+            if (menuWindow != nullptr)
+            {
+                std::cout << "  info  menu bounds " << menuWindow->getBounds().toString() << " (editor 1000 x 540, 49 entries)" << std::endl;
+                check (content.getLocalBounds().contains (menuWindow->getBounds()), "...within the editor's bounds, however long the list");
+                if (snapshotFolder != juce::File())
+                {
+                    auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 2.0f);
+                    auto file = snapshotFolder.getChildFile ("preset-menu-long@2x.png");
+                    file.deleteFile();
+                    juce::FileOutputStream out (file);
+                    juce::PNGImageFormat png;
+                    check (out.openedOk() && png.writeImageToStream (img, out), "snapshot " + file.getFileName());
+                }
+            }
+        }
+
+        if (snapshotFolder != juce::File())
+        {
+            auto snap = [&] (const juce::String& name)
+            {
+                auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 2.0f);
+                auto file = snapshotFolder.getChildFile (name);
+                file.deleteFile();
+                juce::FileOutputStream out (file);
+                juce::PNGImageFormat png;
+                check (out.openedOk() && png.writeImageToStream (img, out), "snapshot " + name);
+            };
+            juce::PopupMenu::dismissAllActiveMenus();
+            pump (100);
+            for (int t = 0; t < numThemes; ++t)
+            {
+                ed->setTheme ((ThemeId) t);
+                ed->askToDeletePreset (indexOf (pm, "Preset 07"));
+                pump (50);
+                snap ("delete-confirm-" + juce::String (t) + "@2x.png");
+                panel.cancel();
+            }
+        }
+        juce::PopupMenu::dismissAllActiveMenus();
+        pump (100);
+        base.reset();
+    }
+
+    folder.deleteRecursively();
+}
+
 static void testEditorRecall()
 {
     section ("Issue #1: a restored state survives an open editor");
@@ -519,6 +695,7 @@ int main (int argc, char** argv)
     testLegacyState();
     testPrograms();
     testUserPresets();
+    testDeletePresets (snapshots);
     testEditorRecall();
     testMeters (snapshots);
 

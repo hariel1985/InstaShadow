@@ -45,6 +45,16 @@ public:
     // Saves the current settings as a user preset (overwrites one of the same name).
     bool saveUserPreset (const juce::String& name);
 
+    // Deletes user preset i of the combined list: its file goes to the Trash (or is
+    // deleted where the system has none). Factory presets can't be deleted. If it
+    // was the current preset, the settings stay as they are, without a preset name.
+    bool canDelete (int index) const;
+    bool deleteUserPreset (int index);
+    int findUserPreset (const juce::File&) const;   // index in the combined list, or -1
+
+    // Tests delete the files directly instead of filling the Trash.
+    void setMoveToTrash (bool shouldMoveToTrash) { moveToTrash = shouldMoveToTrash; }
+
     // Folder of user presets. Tests point it elsewhere.
     juce::File getUserPresetFolder() const { return userFolder; }
     void setUserPresetFolder (const juce::File& f) { userFolder = f; refresh(); }
@@ -70,6 +80,7 @@ private:
     juce::String currentName;
     bool modified = false;
     bool applying = false;
+    bool moveToTrash = true;
 
     // Parameter values of the current preset (to detect edits).
     std::map<juce::String, float> currentValues;

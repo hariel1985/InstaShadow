@@ -127,76 +127,65 @@ void ThemeLookAndFeel::drawTooltip (juce::Graphics& g, const juce::String& text,
 }
 
 // ============================================================
-// SavePresetPanel
+// InlineDialog
 // ============================================================
 
-SavePresetPanel::SavePresetPanel()
+InlineDialog::InlineDialog (juce::String t, int w, int h) : title (std::move (t)), boxWidth (w), boxHeight (h)
 {
     setWantsKeyboardFocus (true);
-    addAndMakeVisible (nameEditor);
-    addAndMakeVisible (saveButton);
-    addAndMakeVisible (cancelButton);
-
-    nameEditor.setIndents (8, 6);
-    nameEditor.onReturnKey = [this] { commit(); };
-    nameEditor.onEscapeKey = [this] { setVisible (false); };
-    saveButton.onClick = [this] { commit(); };
-    cancelButton.onClick = [this] { setVisible (false); };
 }
 
-void SavePresetPanel::show (ThemeId t, const juce::String& suggestedName)
+void InlineDialog::open (ThemeId t)
 {
     theme = t;
-    nameEditor.setFont (t == ThemeId::ivory ? fonts().get (FontId::plexMonoMedium, 13.0f)
-                                            : fonts().get (FontId::interRegular, 13.5f));
-    nameEditor.setText (suggestedName, false);
-    nameEditor.applyFontToAllText (nameEditor.getFont());
     setVisible (true);
     toFront (true);
-    nameEditor.grabKeyboardFocus();
-    nameEditor.selectAll();
+    resized();
     repaint();
 }
 
-juce::Rectangle<int> SavePresetPanel::box() const
+juce::Rectangle<int> InlineDialog::box() const
 {
-    return getLocalBounds().withSizeKeepingCentre (340, 140);
+    return getLocalBounds().withSizeKeepingCentre (boxWidth, boxHeight);
 }
 
-void SavePresetPanel::commit()
-{
-    auto name = nameEditor.getText().trim();
-    if (name.isEmpty())
-        return;
-    setVisible (false);
-    if (onSave) onSave (name);
-}
-
-bool SavePresetPanel::keyPressed (const juce::KeyPress& k)
-{
-    if (k == juce::KeyPress::escapeKey) { setVisible (false); return true; }
-    return false;
-}
-
-void SavePresetPanel::mouseDown (const juce::MouseEvent& e)
-{
-    if (! box().contains (e.getPosition()))
-        setVisible (false);
-}
-
-void SavePresetPanel::resized()
+juce::Rectangle<int> InlineDialog::contentArea() const
 {
     auto b = box().reduced (18);
     b.removeFromTop (26);
-    nameEditor.setBounds (b.removeFromTop (32));
-    b.removeFromTop (14);
-    auto row = b.removeFromTop (30);
-    saveButton.setBounds (row.removeFromRight (84));
-    row.removeFromRight (8);
-    cancelButton.setBounds (row.removeFromRight (84));
+    return b;
 }
 
-void SavePresetPanel::paint (juce::Graphics& g)
+juce::Colour InlineDialog::textColour() const
+{
+    switch (theme)
+    {
+        case ThemeId::graphite: return Graphite::text;
+        case ThemeId::console:  return Console::text;
+        case ThemeId::ivory:    return Ivory::ink;
+    }
+    return Graphite::text;
+}
+
+juce::Font InlineDialog::bodyFont() const
+{
+    return theme == ThemeId::ivory ? fonts().get (FontId::plexCondRegular, 14.0f)
+                                   : fonts().get (FontId::interRegular, 13.0f);
+}
+
+bool InlineDialog::keyPressed (const juce::KeyPress& k)
+{
+    if (k == juce::KeyPress::escapeKey) { cancel(); return true; }
+    return false;
+}
+
+void InlineDialog::mouseDown (const juce::MouseEvent& e)
+{
+    if (! box().contains (e.getPosition()))
+        cancel();
+}
+
+void InlineDialog::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colours::black.withAlpha (0.45f));
 
@@ -216,8 +205,113 @@ void SavePresetPanel::paint (juce::Graphics& g)
     g.fillRoundedRectangle (b, 10.0f);
     g.setColour (border);
     g.drawRoundedRectangle (b.reduced (0.5f), 10.0f, 1.0f);
-    drawText (g, theme == ThemeId::console ? "Save preset" : "SAVE PRESET", titleFont,
+    drawText (g, theme == ThemeId::console ? title : title.toUpperCase(), titleFont,
               theme == ThemeId::graphite ? Graphite::gold : text, b.reduced (18.0f, 14.0f).withHeight (18.0f));
+}
+
+// ============================================================
+// SavePresetPanel
+// ============================================================
+
+SavePresetPanel::SavePresetPanel() : InlineDialog ("Save preset", 340, 140)
+{
+    addAndMakeVisible (nameEditor);
+    addAndMakeVisible (saveButton);
+    addAndMakeVisible (cancelButton);
+
+    nameEditor.setIndents (8, 6);
+    nameEditor.onReturnKey = [this] { commit(); };
+    nameEditor.onEscapeKey = [this] { cancel(); };
+    saveButton.onClick = [this] { commit(); };
+    cancelButton.onClick = [this] { cancel(); };
+}
+
+void SavePresetPanel::show (ThemeId t, const juce::String& suggestedName)
+{
+    nameEditor.setFont (t == ThemeId::ivory ? fonts().get (FontId::plexMonoMedium, 13.0f)
+                                            : fonts().get (FontId::interRegular, 13.5f));
+    nameEditor.setText (suggestedName, false);
+    nameEditor.applyFontToAllText (nameEditor.getFont());
+    open (t);
+    nameEditor.grabKeyboardFocus();
+    nameEditor.selectAll();
+}
+
+void SavePresetPanel::commit()
+{
+    auto name = nameEditor.getText().trim();
+    if (name.isEmpty())
+        return;
+    setVisible (false);
+    if (onSave) onSave (name);
+}
+
+void SavePresetPanel::resized()
+{
+    auto b = contentArea();
+    nameEditor.setBounds (b.removeFromTop (32));
+    b.removeFromTop (14);
+    auto row = b.removeFromTop (30);
+    saveButton.setBounds (row.removeFromRight (84));
+    row.removeFromRight (8);
+    cancelButton.setBounds (row.removeFromRight (84));
+}
+
+// ============================================================
+// DeletePresetPanel
+// ============================================================
+
+DeletePresetPanel::DeletePresetPanel() : InlineDialog ("Delete preset", 360, 150)
+{
+    addAndMakeVisible (deleteButton);
+    addAndMakeVisible (cancelButton);
+    deleteButton.onClick = [this] { confirm(); };
+    cancelButton.onClick = [this] { cancel(); };
+}
+
+void DeletePresetPanel::show (ThemeId t, const juce::String& name, std::function<void()> callback)
+{
+    presetName = name;
+    onDelete = std::move (callback);
+    open (t);
+    grabKeyboardFocus();
+}
+
+void DeletePresetPanel::confirm()
+{
+    if (! isVisible())
+        return;
+    setVisible (false);
+    if (auto f = std::exchange (onDelete, nullptr))
+        f();
+}
+
+bool DeletePresetPanel::keyPressed (const juce::KeyPress& k)
+{
+    if (k == juce::KeyPress::returnKey) { confirm(); return true; }
+    return InlineDialog::keyPressed (k);
+}
+
+void DeletePresetPanel::resized()
+{
+    auto b = contentArea();
+    auto row = b.removeFromBottom (30);
+    deleteButton.setBounds (row.removeFromRight (84));
+    row.removeFromRight (8);
+    cancelButton.setBounds (row.removeFromRight (84));
+}
+
+void DeletePresetPanel::paint (juce::Graphics& g)
+{
+    InlineDialog::paint (g);
+
+    auto area = contentArea().withTrimmedBottom (40).toFloat();
+    g.setFont (bodyFont());
+    g.setColour (textColour());
+    auto quote = [] (juce::juce_wchar c) { return juce::String::charToString (c); };
+    g.drawFittedText ("Delete " + quote (0x201c) + presetName + quote (0x201d) + "?\n"
+                        + "The preset file is moved to the Trash.",
+                      area.toNearestInt(), juce::Justification::topLeft, 3, 1.0f);
 }
 
 // ============================================================
@@ -249,6 +343,7 @@ InstaShadowEditor::InstaShadowEditor (InstaShadowProcessor& p)
         content.addAndMakeVisible (c);
 
     content.addChildComponent (savePanel);
+    content.addChildComponent (deletePanel);
 
     setupKnob (optoThreshold, ParamIDs::optoThreshold, nullptr);
     setupKnob (optoGain, ParamIDs::optoGain, nullptr);
@@ -397,6 +492,7 @@ void InstaShadowEditor::resized()
     content.setBounds (0, 0, designWidth, designHeight);
     content.setTransform (juce::AffineTransform::scale (scale));
     savePanel.setBounds (0, 0, designWidth, designHeight);
+    deletePanel.setBounds (0, 0, designWidth, designHeight);
     if (constructed)
         processor.setEditorSize ({ getWidth(), getHeight() });
 }
@@ -451,35 +547,51 @@ void InstaShadowEditor::showPresetMenu()
 {
     presets.refresh();
 
-    juce::PopupMenu menu;
+    juce::PopupMenu menu, deleteMenu;
     const auto& entries = presets.getEntries();
     auto current = presets.getCurrentIndex();
+
+    constexpr int saveId = 10000, folderId = 10001, deleteCurrentId = 10002, deleteBase = 20000;
 
     menu.addSectionHeader ("Factory presets");
     bool userHeader = false;
     for (int i = 0; i < (int) entries.size(); ++i)
     {
-        if (! entries[(size_t) i].isFactory && ! userHeader)
+        if (! entries[(size_t) i].isFactory)
         {
-            menu.addSectionHeader ("User presets");
+            if (! userHeader)
+                menu.addSectionHeader ("User presets");
             userHeader = true;
+            deleteMenu.addItem (deleteBase + i, entries[(size_t) i].name, true, i == current);
         }
         menu.addItem (i + 1, entries[(size_t) i].name, true, i == current);
     }
 
-    constexpr int saveId = 10000, folderId = 10001;
     menu.addSeparator();
     menu.addItem (saveId, "Save as...");
+    if (presets.canDelete (current))
+        menu.addItem (deleteCurrentId, "Delete " + juce::String::charToString (0x201c) + entries[(size_t) current].name
+                                         + juce::String::charToString (0x201d) + "...");
+    menu.addSubMenu ("Delete user preset", deleteMenu, userHeader);
     menu.addItem (folderId, "Show preset folder");
 
+    // Shown inside the editor (scaled with it): a long list scrolls there instead
+    // of filling the screen, and hosts don't have to deal with another window.
     juce::Component::SafePointer<InstaShadowEditor> safe (this);
-    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&nameButton).withMinimumWidth (220),
-                        [safe] (int result)
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&nameButton)
+                                                  .withParentComponent (&content)
+                                                  .withMinimumWidth (240)
+                                                  .withMaximumNumColumns (1),
+                        [safe, current] (int result)
                         {
                             if (safe == nullptr || result == 0)
                                 return;
                             if (result == saveId)
                                 safe->showSavePanel();
+                            else if (result == deleteCurrentId)
+                                safe->askToDeletePreset (current);
+                            else if (result >= deleteBase)
+                                safe->askToDeletePreset (result - deleteBase);
                             else if (result == folderId)
                             {
                                 auto folder = safe->presets.getUserPresetFolder();
@@ -489,6 +601,23 @@ void InstaShadowEditor::showPresetMenu()
                             else
                                 safe->presets.load (result - 1);
                         });
+}
+
+void InstaShadowEditor::askToDeletePreset (int index)
+{
+    if (! presets.canDelete (index))
+        return;
+
+    // Remember the file, not the index: the list may change before the answer.
+    auto file = presets.getEntries()[(size_t) index].file;
+    juce::Component::SafePointer<InstaShadowEditor> safe (this);
+    deletePanel.show (theme, presets.getEntries()[(size_t) index].name, [safe, file]
+    {
+        if (safe == nullptr)
+            return;
+        safe->presets.refresh();
+        safe->presets.deleteUserPreset (safe->presets.findUserPreset (file));
+    });
 }
 
 void InstaShadowEditor::showSavePanel()

@@ -23,26 +23,66 @@ private:
     ThemeId theme = ThemeId::graphite;
 };
 
-// Inline "save preset" dialog (no separate window, which plugin hosts handle poorly).
-class SavePresetPanel : public juce::Component
+// Inline dialogs (no separate window, which plugin hosts handle poorly): a dimmed
+// backdrop over the editor and a themed box. Escape or a click outside cancels.
+class InlineDialog : public juce::Component
+{
+public:
+    InlineDialog (juce::String title, int boxWidth, int boxHeight);
+
+    void paint (juce::Graphics&) override;
+    bool keyPressed (const juce::KeyPress&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+
+    void cancel() { setVisible (false); }
+
+protected:
+    ThemeId theme = ThemeId::graphite;
+    void open (ThemeId);
+    juce::Rectangle<int> box() const;
+    juce::Rectangle<int> contentArea() const;   // below the title
+    juce::Colour textColour() const;
+    juce::Font bodyFont() const;
+
+private:
+    juce::String title;
+    int boxWidth, boxHeight;
+};
+
+class SavePresetPanel : public InlineDialog
 {
 public:
     SavePresetPanel();
 
     void show (ThemeId, const juce::String& suggestedName);
-    void paint (juce::Graphics&) override;
     void resized() override;
-    bool keyPressed (const juce::KeyPress&) override;
-    void mouseDown (const juce::MouseEvent&) override;
 
     std::function<void (const juce::String&)> onSave;
 
 private:
-    ThemeId theme = ThemeId::graphite;
     juce::TextEditor nameEditor;
     juce::TextButton saveButton { "Save" }, cancelButton { "Cancel" };
-    juce::Rectangle<int> box() const;
     void commit();
+};
+
+// "Delete preset?" confirmation. Return confirms, Escape cancels.
+class DeletePresetPanel : public InlineDialog
+{
+public:
+    DeletePresetPanel();
+
+    void show (ThemeId, const juce::String& presetName, std::function<void()> onDelete);
+    void confirm();
+    juce::String getPresetName() const { return presetName; }
+
+    void paint (juce::Graphics&) override;
+    void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
+
+private:
+    juce::String presetName;
+    std::function<void()> onDelete;
+    juce::TextButton deleteButton { "Delete" }, cancelButton { "Cancel" };
 };
 
 class InstaShadowEditor : public juce::AudioProcessorEditor,
@@ -66,6 +106,9 @@ public:
     int getTimerRate() const { return timerRate; }
     void stepMetersForTest() { timerCallback(); }
     juce::Component& getContent() { return content; }
+    DeletePresetPanel& getDeletePanel() { return deletePanel; }
+    void showPresetMenu();
+    void askToDeletePreset (int index);   // opens the confirmation for a user preset
     void setMeterMode (MeterMode);
 
     static constexpr int activeRate = 30;   // Hz while a meter moves (the ballistics are per tick)
@@ -125,6 +168,7 @@ private:
     std::vector<std::unique_ptr<juce::SliderParameterAttachment>> knobAttachments;
 
     SavePresetPanel savePanel;
+    DeletePresetPanel deletePanel;
     juce::TooltipWindow tooltipWindow { this, 700 };
 
     MeterMode meterMode = MeterMode::gainReduction;
@@ -145,7 +189,6 @@ private:
     void setupKnob (Knob&, const char* paramID, std::function<juce::String (double)> formatter);
     void updateKnobFormatters();
     void updatePresetDisplay();
-    void showPresetMenu();
     void showSavePanel();
     void toggleMeterMode();
     void resetMeters();

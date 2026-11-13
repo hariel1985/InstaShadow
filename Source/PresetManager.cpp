@@ -204,6 +204,46 @@ bool PresetManager::saveUserPreset (const juce::String& rawName)
     return true;
 }
 
+bool PresetManager::canDelete (int index) const
+{
+    return index >= 0 && index < (int) entries.size() && ! entries[(size_t) index].isFactory;
+}
+
+int PresetManager::findUserPreset (const juce::File& f) const
+{
+    for (int i = 0; i < (int) entries.size(); ++i)
+        if (! entries[(size_t) i].isFactory && entries[(size_t) i].file == f)
+            return i;
+    return -1;
+}
+
+bool PresetManager::deleteUserPreset (int index)
+{
+    if (! canDelete (index))
+        return false;
+
+    auto file = entries[(size_t) index].file;
+    bool wasCurrent = index == currentIndex;
+
+    if (file.exists() && ! (moveToTrash && file.moveToTrash() && ! file.exists()))
+        if (! file.deleteFile())
+            return false;
+
+    if (wasCurrent)
+    {
+        // The sound doesn't change; it just no longer has a preset behind it.
+        currentName = {};
+        refresh();
+        setCurrent (-1, {}, captureValues());
+    }
+    else
+    {
+        refresh();   // the current preset's index may have moved up
+        sendChangeMessage();
+    }
+    return true;
+}
+
 void PresetManager::setCurrent (int index, const juce::String& name, const std::map<juce::String, float>& values)
 {
     currentIndex = index;

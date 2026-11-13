@@ -130,6 +130,7 @@ Three switchable transformer types add subtle harmonic coloration, modeled with 
 - Every control is a host parameter: automatable, visible in generic editors and recalled by the host's own presets
 - **Factory presets**, also offered to the host as programs (REAPER's preset menu, AU factory presets)
 - **User presets** — *Save* in the header writes a preset file; previous/next and the preset menu step through factory and user presets. A dot (or `*`) marks a preset that has been edited since it was loaded
+- **Deleting** a user preset: *Delete* in the preset menu (the current one, or any from the *Delete user preset* submenu), after a confirmation; the file goes to the Trash. Factory presets can't be deleted. A long list scrolls inside the plugin window
 - User preset folder: `~/Library/Audio/Presets/InstaShadow` (macOS), `%APPDATA%\InstaShadow\Presets` (Windows), `~/.config/InstaShadow/Presets` (Linux)
 - **A/B compare** in the Mastering Console theme
 - Projects saved with v1.0/v1.1 load unchanged, and projects saved with this version still open in v1.1
