@@ -112,31 +112,39 @@ Three switchable transformer types add subtle harmonic coloration, modeled with 
 
 ### Metering
 
-- **Analog-style needle VU meters** (L/R) with ballistic needle movement — cream-colored face, scale markings from -20 to +3 dB, red zone above 0 dB
-- **Optical GR meter** — horizontal bar showing optical stage gain reduction
-- **Discrete GR meter** — horizontal bar showing VCA stage gain reduction
-- **Output VU meter** — vertical stereo bar meter in the output section
+- **Classic VU needle meters** for the optical and discrete gain reduction: scale at the top, the needle pivot hidden behind a cover plate, a natural 4:3 face. Click a meter to switch both to input level (L/R) and back
+- **Segmented gain-reduction meters** with a numeric readout in the Mastering Console theme
+- **Output meter** — stereo bars (or LED rows in the Ivory Rack theme)
+- Meters keep their ballistics while audio plays and stop redrawing when they are at rest: the editor then only polls the levels a few times a second, and redraws nothing but the meter that changed
 
 ### Global Controls
 
 | Control | Description |
 |---------|-------------|
 | Stereo Link | Links L/R sidechain for matched stereo compression. Off = dual-mono |
-| Bypass | Global bypass — passes audio unprocessed |
+| Bypass | Global bypass — passes audio unprocessed (also the host's bypass) |
 | Output Gain | -12 to +12 dB final output level |
+
+### Presets and Automation
+
+- Every control is a host parameter: automatable, visible in generic editors and recalled by the host's own presets
+- **Factory presets**, also offered to the host as programs (REAPER's preset menu, AU factory presets)
+- **User presets** — *Save* in the header writes a preset file; previous/next and the preset menu step through factory and user presets. A dot (or `*`) marks a preset that has been edited since it was loaded
+- User preset folder: `~/Library/Audio/Presets/InstaShadow` (macOS), `%APPDATA%\InstaShadow\Presets` (Windows), `~/.config/InstaShadow/Presets` (Linux)
+- **A/B compare** in the Mastering Console theme
+- Projects saved with v1.0/v1.1 load unchanged, and projects saved with this version still open in v1.1
 
 ### GUI
 
-- Layout inspired by the original Shadow Hills Mastering Compressor hardware
-- Optical controls on the left, discrete controls on the right, meters in the center
-- Transformer and output controls at the bottom center
-- Dark modern UI with InstaDrums/InstaGrain visual style
-- 3D metal knobs with multi-layer glow effects (orange for main controls, blue for sidechain HPF)
-- Analog needle VU meters with inertial needle movement
-- Carbon fiber background texture
-- Rajdhani custom font (embedded)
-- Fully resizable window (800×500 — 1400×900) with proportional scaling
-- State save/restore — all settings recalled with DAW session
+Three themes, switchable from the three colour swatches in the header (the choice is saved with the plugin state, and new instances start with the last one used):
+
+- **Graphite & Brass** — dark panels with brass accents, VU needle meters
+- **Mastering Console** — a left-to-right signal chain (Optical → Discrete VCA → Transformer → Output) with segmented meters and A/B compare
+- **Ivory Rack** — a cream rack faceplate with skirted knobs, VU meters and a rotary transformer switch
+
+- 1000×540 editor, resizable (700×378 — 2000×1080) with a fixed aspect ratio
+- Double-click a knob to reset it, double-click a value to type one
+- Embedded fonts: Barlow Condensed, Inter, IBM Plex Mono, IBM Plex Sans Condensed, JetBrains Mono and Playfair Display, all under the SIL Open Font License 1.1 (see `Resources/Fonts/licenses`)
 
 ## How It Works
 
@@ -197,13 +205,13 @@ Output:
 ## Tech Stack
 
 - **Language:** C++17
-- **Framework:** JUCE 8
+- **Framework:** JUCE 8/9
 - **Build:** CMake + MSVC / Xcode / GCC
 - **Optical DSP:** Custom Port-Hamiltonian solver (implicit trapezoidal + Newton-Raphson)
 - **VCA DSP:** Custom feed-forward compressor with soft-knee gain computer
 - **Transformer DSP:** Custom waveshaping with `juce::dsp::Oversampling` (4x polyphase IIR)
 - **Filters:** `juce::dsp::IIR` (sidechain HPF, tonestack EQ)
-- **Font:** Rajdhani (SIL Open Font License)
+- **Fonts:** Barlow Condensed, Inter, IBM Plex, JetBrains Mono, Playfair Display (SIL Open Font License)
 
 ## License
 

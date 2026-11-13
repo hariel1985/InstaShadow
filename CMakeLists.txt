@@ -22,9 +22,18 @@ juce_add_plugin(InstaShadow
 juce_generate_juce_header(InstaShadow)
 
 juce_add_binary_data(InstaShadowData SOURCES
-    Resources/Rajdhani-Regular.ttf
-    Resources/Rajdhani-Medium.ttf
-    Resources/Rajdhani-Bold.ttf
+    Resources/Fonts/BarlowCondensed-Medium.ttf
+    Resources/Fonts/BarlowCondensed-SemiBold.ttf
+    Resources/Fonts/Inter-Regular.ttf
+    Resources/Fonts/Inter-Medium.ttf
+    Resources/Fonts/Inter-SemiBold.ttf
+    Resources/Fonts/IBMPlexMono-Medium.ttf
+    Resources/Fonts/JetBrainsMono-Regular.ttf
+    Resources/Fonts/JetBrainsMono-Medium.ttf
+    Resources/Fonts/IBMPlexSansCondensed-Regular.ttf
+    Resources/Fonts/IBMPlexSansCondensed-Medium.ttf
+    Resources/Fonts/IBMPlexSansCondensed-SemiBold.ttf
+    Resources/Fonts/PlayfairDisplay-SemiBoldItalic.ttf
 )
 
 target_sources(InstaShadow
@@ -33,15 +42,13 @@ target_sources(InstaShadow
         Source/PluginEditor.cpp
         Source/Parameters.cpp
         Source/PresetManager.cpp
-        Source/LookAndFeel.cpp
+        Source/Theme.cpp
+        Source/Widgets.cpp
+        Source/Meters.cpp
         Source/CompressorEngine.cpp
         Source/OpticalCell.cpp
         Source/VCACompressor.cpp
         Source/TransformerSaturation.cpp
-        Source/OpticalPanel.cpp
-        Source/DiscretePanel.cpp
-        Source/TransformerPanel.cpp
-        Source/OutputPanel.cpp
 )
 
 target_compile_definitions(InstaShadow

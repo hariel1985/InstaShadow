@@ -32,7 +32,20 @@ void CompressorEngine::processBlock (juce::AudioBuffer<float>& buffer)
     const int numSamples = buffer.getNumSamples();
     const int numChannels = std::min (buffer.getNumChannels(), 2);
 
-    if (globalBypass.load() || numChannels == 0) return;
+    if (numChannels == 0) return;
+
+    if (globalBypass.load())
+    {
+        // Bypassed: no gain reduction, output = input.
+        const float inL = buffer.getMagnitude (0, 0, numSamples);
+        const float inR = numChannels > 1 ? buffer.getMagnitude (1, 0, numSamples) : inL;
+        inputLevelL.store (inL);  inputLevelR.store (inR);
+        outputLevelL.store (inL); outputLevelR.store (inR);
+        optoGrDb.store (0.0f);
+        vcaGrDb.store (0.0f);
+        meterSequence.fetch_add (1);
+        return;
+    }
 
     // Measure input level BEFORE any processing
     inputLevelL.store (buffer.getMagnitude (0, 0, numSamples));
@@ -149,4 +162,5 @@ void CompressorEngine::processBlock (juce::AudioBuffer<float>& buffer)
         outputLevelR.store (buffer.getMagnitude (1, 0, numSamples));
     else
         outputLevelR.store (outputLevelL.load());
+    meterSequence.fetch_add (1);
 }
