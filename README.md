@@ -202,6 +202,16 @@ Output:
 - AU: `build/InstaShadow_artefacts/Release/AU/InstaShadow.component` (macOS)
 - LV2: `build/InstaShadow_artefacts/Release/LV2/InstaShadow.lv2`
 
+### Tests
+
+```bash
+cmake -B build-tests -DCMAKE_BUILD_TYPE=Release -DINSTASHADOW_BUILD_TESTS=ON
+cmake --build build-tests --config Release --target InstaShadowTests InstaShadowHostTest InstaShadow_VST3
+build-tests/InstaShadowTests --snapshots shots      # state, presets, editor recall, meter repaints, theme snapshots
+build-tests/InstaShadowHostTest_artefacts/Release/InstaShadowHostTest \
+    build-tests/InstaShadow_artefacts/Release/VST3/InstaShadow.vst3   # loads the plugin like a DAW
+```
+
 ## Tech Stack
 
 - **Language:** C++17

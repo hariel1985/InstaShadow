@@ -71,3 +71,37 @@ target_link_libraries(InstaShadow
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
 )
+
+# Command-line tests (state, presets, editor recall, meter repaints):
+#   cmake -B build -DINSTASHADOW_BUILD_TESTS=ON && cmake --build build --target InstaShadowTests
+option(INSTASHADOW_BUILD_TESTS "Build the InstaShadowTests tool" OFF)
+
+if (INSTASHADOW_BUILD_TESTS)
+    # The tests run the message loop for a while (runDispatchLoopUntil).
+    target_compile_definitions(InstaShadow PUBLIC JUCE_MODAL_LOOPS_PERMITTED=1)
+    add_executable(InstaShadowTests Tests/InstaShadowTests.cpp)
+    target_include_directories(InstaShadowTests PRIVATE $<TARGET_PROPERTY:InstaShadow,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(InstaShadowTests PRIVATE $<TARGET_PROPERTY:InstaShadow,COMPILE_DEFINITIONS>)
+    target_compile_options(InstaShadowTests PRIVATE $<TARGET_PROPERTY:InstaShadow,COMPILE_OPTIONS>)
+    target_link_libraries(InstaShadowTests PRIVATE InstaShadow)
+    if (APPLE)
+        target_link_libraries(InstaShadowTests PRIVATE "-framework Cocoa" "-framework Carbon" "-framework IOKit"
+            "-framework QuartzCore" "-framework Metal" "-framework MetalKit" "-framework Accelerate"
+            "-framework AudioToolbox" "-framework CoreAudio" "-framework CoreMIDI" "-framework CoreAudioKit"
+            "-framework AVFoundation" "-framework AVKit" "-framework WebKit" "-framework Security"
+            "-framework CoreImage" "-framework UniformTypeIdentifiers" "-framework DiscRecording")
+    endif()
+endif()
+
+# Host-side test: loads a built InstaShadow.vst3 / .component like a DAW does.
+if (INSTASHADOW_BUILD_TESTS)
+    juce_add_console_app(InstaShadowHostTest PRODUCT_NAME "InstaShadowHostTest")
+    target_sources(InstaShadowHostTest PRIVATE Tests/HostTest.cpp)
+    target_compile_definitions(InstaShadowHostTest PRIVATE
+        JUCE_PLUGINHOST_VST3=1 JUCE_PLUGINHOST_AU=1 JUCE_MODAL_LOOPS_PERMITTED=1
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_ALSA=0 JUCE_JACK=0)
+    target_link_libraries(InstaShadowHostTest PRIVATE
+        juce::juce_audio_processors juce::juce_audio_utils
+        juce::juce_recommended_config_flags)
+    juce_generate_juce_header(InstaShadowHostTest)
+endif()
