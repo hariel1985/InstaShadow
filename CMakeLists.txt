@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(InstaShadow VERSION 1.1.0)
+project(InstaShadow VERSION 1.2.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +31,8 @@ target_sources(InstaShadow
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/Parameters.cpp
+        Source/PresetManager.cpp
         Source/LookAndFeel.cpp
         Source/CompressorEngine.cpp
         Source/OpticalCell.cpp

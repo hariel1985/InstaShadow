@@ -52,8 +52,12 @@ private:
     TransformerPanel transformerPanel;
     OutputPanel outputPanel;
 
-    void syncKnobsToEngine();
-    void syncEngineFromKnobs();
+    // The controls are bound to the host parameters; the editor no longer
+    // writes its own values into the engine.
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliderAttachments;
+    std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttonAttachments;
+    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> comboAttachments;
+    std::unique_ptr<juce::ParameterAttachment> transformerAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InstaShadowEditor)
 };

@@ -17,6 +17,7 @@ TransformerPanel::TransformerPanel()
             else
                 currentType = typeId;
             updateButtonStates();
+            if (onTypeChosen) onTypeChosen (currentType);
         };
         addAndMakeVisible (btn);
     };

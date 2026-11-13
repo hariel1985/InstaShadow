@@ -12,6 +12,9 @@ public:
     int getSelectedType() const { return currentType; }
     void setSelectedType (int type);
 
+    // Called when the user picks a type (0 = Off).
+    std::function<void (int)> onTypeChosen;
+
     juce::TextButton nickelButton  { "NICKEL" };
     juce::TextButton ironButton    { "IRON" };
     juce::TextButton steelButton   { "STEEL" };

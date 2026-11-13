@@ -86,7 +86,40 @@ InstaShadowEditor::InstaShadowEditor (InstaShadowProcessor& p)
     };
     addAndMakeVisible (meterSwapButton);
 
-    syncKnobsToEngine();
+    auto& state = processor.getState();
+    auto slider = [&] (juce::Slider& sl, const char* id)
+    {
+        sliderAttachments.push_back (std::make_unique<juce::SliderParameterAttachment> (*state.getParameter (id), sl));
+    };
+    auto button = [&] (juce::Button& b, const char* id)
+    {
+        buttonAttachments.push_back (std::make_unique<juce::ButtonParameterAttachment> (*state.getParameter (id), b));
+    };
+    auto combo = [&] (juce::ComboBox& c, const char* id)
+    {
+        comboAttachments.push_back (std::make_unique<juce::ComboBoxParameterAttachment> (*state.getParameter (id), c));
+    };
+
+    slider (opticalPanel.thresholdKnob, ParamIDs::optoThreshold);
+    slider (opticalPanel.gainKnob, ParamIDs::optoGain);
+    slider (opticalPanel.scHpfKnob, ParamIDs::optoScHpf);
+    button (opticalPanel.bypassToggle, ParamIDs::optoBypass);
+    slider (discretePanel.thresholdKnob, ParamIDs::vcaThreshold);
+    slider (discretePanel.gainKnob, ParamIDs::vcaGain);
+    combo (discretePanel.ratioBox, ParamIDs::vcaRatio);
+    combo (discretePanel.attackBox, ParamIDs::vcaAttack);
+    combo (discretePanel.releaseBox, ParamIDs::vcaRelease);
+    button (discretePanel.bypassToggle, ParamIDs::vcaBypass);
+    slider (outputPanel.outputGainKnob, ParamIDs::outputGain);
+    button (linkToggle, ParamIDs::stereoLink);
+    button (bypassToggle, ParamIDs::globalBypass);
+
+    transformerAttachment = std::make_unique<juce::ParameterAttachment> (
+        *state.getParameter (ParamIDs::transformerType),
+        [this] (float v) { transformerPanel.setSelectedType (juce::roundToInt (v)); });
+    transformerAttachment->sendInitialUpdate();
+    transformerPanel.onTypeChosen = [this] (int type) { transformerAttachment->setValueAsCompleteGesture ((float) type); };
+
     startTimerHz (30);
 }
 
@@ -96,54 +129,8 @@ InstaShadowEditor::~InstaShadowEditor()
     stopTimer();
 }
 
-void InstaShadowEditor::syncKnobsToEngine()
-{
-    auto& eng = processor.getEngine();
-
-    opticalPanel.thresholdKnob.setValue (eng.optoThresholdDb.load(), juce::dontSendNotification);
-    opticalPanel.gainKnob.setValue (eng.optoGainDb.load(), juce::dontSendNotification);
-    opticalPanel.scHpfKnob.setValue (eng.optoScHpfHz.load(), juce::dontSendNotification);
-    opticalPanel.bypassToggle.setToggleState (eng.optoBypass.load(), juce::dontSendNotification);
-
-    discretePanel.thresholdKnob.setValue (eng.vcaThresholdDb.load(), juce::dontSendNotification);
-    discretePanel.gainKnob.setValue (eng.vcaGainDb.load(), juce::dontSendNotification);
-    discretePanel.ratioBox.setSelectedId (eng.vcaRatioIndex.load() + 1, juce::dontSendNotification);
-    discretePanel.attackBox.setSelectedId (eng.vcaAttackIndex.load() + 1, juce::dontSendNotification);
-    discretePanel.releaseBox.setSelectedId (eng.vcaReleaseIndex.load() + 1, juce::dontSendNotification);
-    discretePanel.bypassToggle.setToggleState (eng.vcaBypass.load(), juce::dontSendNotification);
-
-    transformerPanel.setSelectedType (eng.transformerType.load());
-    outputPanel.outputGainKnob.setValue (eng.outputGainDb.load(), juce::dontSendNotification);
-    linkToggle.setToggleState (eng.stereoLink.load(), juce::dontSendNotification);
-    bypassToggle.setToggleState (eng.globalBypass.load(), juce::dontSendNotification);
-}
-
-void InstaShadowEditor::syncEngineFromKnobs()
-{
-    auto& eng = processor.getEngine();
-
-    eng.optoThresholdDb.store ((float) opticalPanel.thresholdKnob.getValue());
-    eng.optoGainDb.store ((float) opticalPanel.gainKnob.getValue());
-    eng.optoScHpfHz.store ((float) opticalPanel.scHpfKnob.getValue());
-    eng.optoBypass.store (opticalPanel.bypassToggle.getToggleState());
-
-    eng.vcaThresholdDb.store ((float) discretePanel.thresholdKnob.getValue());
-    eng.vcaGainDb.store ((float) discretePanel.gainKnob.getValue());
-    eng.vcaRatioIndex.store (discretePanel.ratioBox.getSelectedId() - 1);
-    eng.vcaAttackIndex.store (discretePanel.attackBox.getSelectedId() - 1);
-    eng.vcaReleaseIndex.store (discretePanel.releaseBox.getSelectedId() - 1);
-    eng.vcaBypass.store (discretePanel.bypassToggle.getToggleState());
-
-    eng.transformerType.store (transformerPanel.getSelectedType());
-    eng.outputGainDb.store ((float) outputPanel.outputGainKnob.getValue());
-    eng.stereoLink.store (linkToggle.getToggleState());
-    eng.globalBypass.store (bypassToggle.getToggleState());
-}
-
 void InstaShadowEditor::timerCallback()
 {
-    syncEngineFromKnobs();
-
     auto& eng = processor.getEngine();
 
     if (! metersSwapped)
