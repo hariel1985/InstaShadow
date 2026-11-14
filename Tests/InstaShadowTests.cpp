@@ -2,6 +2,7 @@
 // meter repaint behaviour. Build with -DINSTASHADOW_BUILD_TESTS=ON.
 //
 //   InstaShadowTests [--snapshots <folder>]
+//   InstaShadowTests --readme-shots <folder>    (only renders the README screenshots)
 //
 // Exit code 0 = all passed.
 
@@ -679,6 +680,60 @@ static void testMeters (const juce::File& snapshotFolder)
     base.reset();
 }
 
+// README screenshots: each theme with a factory preset loaded and music-like
+// audio running, rendered at 2x once the meters have caught up.
+static void renderReadmeShots (const juce::File& folder)
+{
+    section ("README screenshots");
+    struct Shot { ThemeId theme; int preset; const char* file; float level; };
+    const Shot shots[] = { { ThemeId::graphite, 1, "graphite-brass.png",    0.60f },
+                           { ThemeId::console,  3, "mastering-console.png", 0.55f },
+                           { ThemeId::ivory,    5, "ivory-rack.png",        0.60f } };
+
+    for (auto& shot : shots)
+    {
+        InstaShadowProcessor p;
+        const double sr = 48000.0;
+        const int block = 1600;   // one 30 Hz meter tick
+        p.prepareToPlay (sr, block);
+        p.setCurrentProgram (shot.preset);
+
+        std::unique_ptr<juce::AudioProcessorEditor> base (p.createEditor());
+        auto* ed = dynamic_cast<InstaShadowEditor*> (base.get());
+        ed->setTheme (shot.theme);
+        ed->setSize (designWidth, designHeight);
+        pump (50);
+
+        // A bass note and a melody line, pulsing at 2 Hz; the right channel a little quieter
+        juce::AudioBuffer<float> buf (2, block);
+        juce::MidiBuffer midi;
+        double t = 0.0;
+        for (int tick = 0; tick < 30 * 4; ++tick)
+        {
+            for (int i = 0; i < block; ++i, t += 1.0 / sr)
+            {
+                auto env = 0.75f + 0.25f * (float) std::sin (juce::MathConstants<double>::twoPi * 2.0 * t);
+                auto s = shot.level * env * (float) (0.7 * std::sin (juce::MathConstants<double>::twoPi * 110.0 * t)
+                                                     + 0.3 * std::sin (juce::MathConstants<double>::twoPi * 440.0 * t));
+                buf.setSample (0, i, s);
+                buf.setSample (1, i, s * 0.85f);
+            }
+            p.processBlock (buf, midi);
+            ed->stepMetersForTest();
+        }
+        pump (50);
+
+        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 2.0f);
+        auto file = folder.getChildFile (shot.file);
+        file.deleteFile();
+        juce::FileOutputStream out (file);
+        juce::PNGImageFormat png;
+        check (out.openedOk() && png.writeImageToStream (img, out),
+               file.getFileName() + " (" + p.getProgramName (shot.preset) + ", optical GR "
+               + juce::String (p.getEngine().optoGrDb.load(), 1) + " dB)");
+    }
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -689,6 +744,16 @@ int main (int argc, char** argv)
             snapshots = juce::File::getCurrentWorkingDirectory().getChildFile (argv[i + 1]);
     if (snapshots != juce::File())
         snapshots.createDirectory();
+
+    for (int i = 1; i < argc - 1; ++i)
+        if (juce::String (argv[i]) == "--readme-shots")
+        {
+            auto folder = juce::File::getCurrentWorkingDirectory().getChildFile (argv[i + 1]);
+            folder.createDirectory();
+            renderReadmeShots (folder);
+            std::cout << "\n" << (checks - failures) << "/" << checks << " checks passed" << std::endl;
+            return failures == 0 ? 0 : 1;
+        }
 
     testParameters();
     testStateRoundTrip();

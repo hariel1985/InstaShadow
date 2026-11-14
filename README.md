@@ -4,7 +4,13 @@ Free, open-source dual-stage mastering compressor plugin inspired by the Shadow 
 
 ![VST3](https://img.shields.io/badge/format-VST3-blue) ![AU](https://img.shields.io/badge/format-AU-blue) ![LV2](https://img.shields.io/badge/format-LV2-blue) ![C++](https://img.shields.io/badge/language-C%2B%2B17-orange) ![JUCE](https://img.shields.io/badge/framework-JUCE-green) ![License](https://img.shields.io/badge/license-GPL--3.0-lightgrey) ![Build](https://github.com/hariel1985/InstaShadow/actions/workflows/build.yml/badge.svg)
 
-![InstaShadow Screenshot](screenshot.png)
+![InstaShadow in the Graphite & Brass theme](screenshot.png)
+
+Three themes, switched from the colour swatches in the header:
+
+| Mastering Console | Ivory Rack |
+|---|---|
+| ![InstaShadow in the Mastering Console theme](docs/screenshots/mastering-console.png) | ![InstaShadow in the Ivory Rack theme](docs/screenshots/ivory-rack.png) |
 
 ## What Is This?
 
@@ -14,24 +20,24 @@ The optical stage provides smooth, program-dependent compression with a natural 
 
 ## Download
 
-**[Latest Release: v1.1](https://github.com/hariel1985/InstaShadow/releases/tag/v1.1)**
+**[Latest release](https://github.com/hariel1985/InstaShadow/releases/latest)** — what changed in each version: [CHANGELOG.md](CHANGELOG.md)
 
 ### Windows
 | File | Description |
 |------|-------------|
-| [InstaShadow-VST3-Win64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-VST3-Win64.zip) | VST3 plugin — copy to `C:\Program Files\Common Files\VST3\` |
+| [InstaShadow-VST3-Win64.zip](https://github.com/hariel1985/InstaShadow/releases/latest/download/InstaShadow-VST3-Win64.zip) | VST3 plugin — copy to `C:\Program Files\Common Files\VST3\` |
 
 ### macOS (Universal Binary: Apple Silicon + Intel)
 | File | Description |
 |------|-------------|
-| [InstaShadow-VST3-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-VST3-macOS.zip) | VST3 plugin — copy to `~/Library/Audio/Plug-Ins/VST3/` |
-| [InstaShadow-AU-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-AU-macOS.zip) | Audio Unit — copy to `~/Library/Audio/Plug-Ins/Components/` |
+| [InstaShadow-VST3-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/latest/download/InstaShadow-VST3-macOS.zip) | VST3 plugin — copy to `~/Library/Audio/Plug-Ins/VST3/` |
+| [InstaShadow-AU-macOS.zip](https://github.com/hariel1985/InstaShadow/releases/latest/download/InstaShadow-AU-macOS.zip) | Audio Unit — copy to `~/Library/Audio/Plug-Ins/Components/` |
 
 ### Linux (x64, built on Ubuntu 22.04)
 | File | Description |
 |------|-------------|
-| [InstaShadow-VST3-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-VST3-Linux-x64.zip) | VST3 plugin — copy to `~/.vst3/` |
-| [InstaShadow-LV2-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/download/v1.1/InstaShadow-LV2-Linux-x64.zip) | LV2 plugin — copy to `~/.lv2/` |
+| [InstaShadow-VST3-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/latest/download/InstaShadow-VST3-Linux-x64.zip) | VST3 plugin — copy to `~/.vst3/` |
+| [InstaShadow-LV2-Linux-x64.zip](https://github.com/hariel1985/InstaShadow/releases/latest/download/InstaShadow-LV2-Linux-x64.zip) | LV2 plugin — copy to `~/.lv2/` |
 
 > **macOS note:** Builds are Universal Binary (Apple Silicon + Intel). Not code-signed — after copying the plugin, remove the quarantine flag in Terminal:
 > ```bash
@@ -133,7 +139,7 @@ Three switchable transformer types add subtle harmonic coloration, modeled with 
 - **Deleting** a user preset: *Delete* in the preset menu (the current one, or any from the *Delete user preset* submenu), after a confirmation; the file goes to the Trash. Factory presets can't be deleted. A long list scrolls inside the plugin window
 - User preset folder: `~/Library/Audio/Presets/InstaShadow` (macOS), `%APPDATA%\InstaShadow\Presets` (Windows), `~/.config/InstaShadow/Presets` (Linux)
 - **A/B compare** in the Mastering Console theme
-- Projects saved with v1.0/v1.1 load unchanged, and projects saved with this version still open in v1.1
+- Projects saved with v1.0/v1.1 load unchanged, and projects saved with v1.2 still open in v1.1
 
 ### GUI
 
@@ -209,6 +215,7 @@ Output:
 cmake -B build-tests -DCMAKE_BUILD_TYPE=Release -DINSTASHADOW_BUILD_TESTS=ON
 cmake --build build-tests --config Release --target InstaShadowTests InstaShadowHostTest InstaShadow_VST3
 build-tests/InstaShadowTests --snapshots shots      # state, presets, editor recall, meter repaints, theme snapshots
+build-tests/InstaShadowTests --readme-shots shots  # README images: graphite-brass.png is screenshot.png, the others go to docs/screenshots
 build-tests/InstaShadowHostTest_artefacts/Release/InstaShadowHostTest \
     build-tests/InstaShadow_artefacts/Release/VST3/InstaShadow.vst3   # loads the plugin like a DAW
 ```
