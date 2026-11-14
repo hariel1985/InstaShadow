@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(InstaShadow VERSION 1.1.0)
+project(InstaShadow VERSION 1.2.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,24 +22,33 @@ juce_add_plugin(InstaShadow
 juce_generate_juce_header(InstaShadow)
 
 juce_add_binary_data(InstaShadowData SOURCES
-    Resources/Rajdhani-Regular.ttf
-    Resources/Rajdhani-Medium.ttf
-    Resources/Rajdhani-Bold.ttf
+    Resources/Fonts/BarlowCondensed-Medium.ttf
+    Resources/Fonts/BarlowCondensed-SemiBold.ttf
+    Resources/Fonts/Inter-Regular.ttf
+    Resources/Fonts/Inter-Medium.ttf
+    Resources/Fonts/Inter-SemiBold.ttf
+    Resources/Fonts/IBMPlexMono-Medium.ttf
+    Resources/Fonts/JetBrainsMono-Regular.ttf
+    Resources/Fonts/JetBrainsMono-Medium.ttf
+    Resources/Fonts/IBMPlexSansCondensed-Regular.ttf
+    Resources/Fonts/IBMPlexSansCondensed-Medium.ttf
+    Resources/Fonts/IBMPlexSansCondensed-SemiBold.ttf
+    Resources/Fonts/PlayfairDisplay-SemiBoldItalic.ttf
 )
 
 target_sources(InstaShadow
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
-        Source/LookAndFeel.cpp
+        Source/Parameters.cpp
+        Source/PresetManager.cpp
+        Source/Theme.cpp
+        Source/Widgets.cpp
+        Source/Meters.cpp
         Source/CompressorEngine.cpp
         Source/OpticalCell.cpp
         Source/VCACompressor.cpp
         Source/TransformerSaturation.cpp
-        Source/OpticalPanel.cpp
-        Source/DiscretePanel.cpp
-        Source/TransformerPanel.cpp
-        Source/OutputPanel.cpp
 )
 
 target_compile_definitions(InstaShadow
@@ -62,3 +71,37 @@ target_link_libraries(InstaShadow
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
 )
+
+# Command-line tests (state, presets, editor recall, meter repaints):
+#   cmake -B build -DINSTASHADOW_BUILD_TESTS=ON && cmake --build build --target InstaShadowTests
+option(INSTASHADOW_BUILD_TESTS "Build the InstaShadowTests tool" OFF)
+
+if (INSTASHADOW_BUILD_TESTS)
+    # The tests run the message loop for a while (runDispatchLoopUntil).
+    target_compile_definitions(InstaShadow PUBLIC JUCE_MODAL_LOOPS_PERMITTED=1)
+    add_executable(InstaShadowTests Tests/InstaShadowTests.cpp)
+    target_include_directories(InstaShadowTests PRIVATE $<TARGET_PROPERTY:InstaShadow,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(InstaShadowTests PRIVATE $<TARGET_PROPERTY:InstaShadow,COMPILE_DEFINITIONS>)
+    target_compile_options(InstaShadowTests PRIVATE $<TARGET_PROPERTY:InstaShadow,COMPILE_OPTIONS>)
+    target_link_libraries(InstaShadowTests PRIVATE InstaShadow)
+    if (APPLE)
+        target_link_libraries(InstaShadowTests PRIVATE "-framework Cocoa" "-framework Carbon" "-framework IOKit"
+            "-framework QuartzCore" "-framework Metal" "-framework MetalKit" "-framework Accelerate"
+            "-framework AudioToolbox" "-framework CoreAudio" "-framework CoreMIDI" "-framework CoreAudioKit"
+            "-framework AVFoundation" "-framework AVKit" "-framework WebKit" "-framework Security"
+            "-framework CoreImage" "-framework UniformTypeIdentifiers" "-framework DiscRecording")
+    endif()
+endif()
+
+# Host-side test: loads a built InstaShadow.vst3 / .component like a DAW does.
+if (INSTASHADOW_BUILD_TESTS)
+    juce_add_console_app(InstaShadowHostTest PRODUCT_NAME "InstaShadowHostTest")
+    target_sources(InstaShadowHostTest PRIVATE Tests/HostTest.cpp)
+    target_compile_definitions(InstaShadowHostTest PRIVATE
+        JUCE_PLUGINHOST_VST3=1 JUCE_PLUGINHOST_AU=1 JUCE_MODAL_LOOPS_PERMITTED=1
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_ALSA=0 JUCE_JACK=0)
+    target_link_libraries(InstaShadowHostTest PRIVATE
+        juce::juce_audio_processors juce::juce_audio_utils
+        juce::juce_recommended_config_flags)
+    juce_generate_juce_header(InstaShadowHostTest)
+endif()

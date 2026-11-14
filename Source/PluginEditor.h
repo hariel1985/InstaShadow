@@ -1,59 +1,201 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
-#include "LookAndFeel.h"
-#include "OpticalPanel.h"
-#include "DiscretePanel.h"
-#include "TransformerPanel.h"
-#include "OutputPanel.h"
-#include "GRMeter.h"
-#include "NeedleVuMeter.h"
+#include "Theme.h"
+#include "Widgets.h"
+#include "Meters.h"
 
-static constexpr const char* kInstaShadowVersion = "v1.1";
+// LookAndFeel for the parts JUCE draws itself (menus, tooltips, text entry).
+class ThemeLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    ThemeLookAndFeel();
+    void setTheme (ThemeId);
+    ThemeId getTheme() const { return theme; }
+
+    juce::Font getPopupMenuFont() override;
+    juce::Font getLabelFont (juce::Label&) override;
+    juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override;
+    juce::Rectangle<int> getTooltipBounds (const juce::String&, juce::Point<int>, juce::Rectangle<int>) override;
+    void drawTooltip (juce::Graphics&, const juce::String&, int width, int height) override;
+
+private:
+    ThemeId theme = ThemeId::graphite;
+};
+
+// Inline dialogs (no separate window, which plugin hosts handle poorly): a dimmed
+// backdrop over the editor and a themed box. Escape or a click outside cancels.
+class InlineDialog : public juce::Component
+{
+public:
+    InlineDialog (juce::String title, int boxWidth, int boxHeight);
+
+    void paint (juce::Graphics&) override;
+    bool keyPressed (const juce::KeyPress&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+
+    void cancel() { setVisible (false); }
+
+protected:
+    ThemeId theme = ThemeId::graphite;
+    void open (ThemeId);
+    juce::Rectangle<int> box() const;
+    juce::Rectangle<int> contentArea() const;   // below the title
+    juce::Colour textColour() const;
+    juce::Font bodyFont() const;
+
+private:
+    juce::String title;
+    int boxWidth, boxHeight;
+};
+
+class SavePresetPanel : public InlineDialog
+{
+public:
+    SavePresetPanel();
+
+    void show (ThemeId, const juce::String& suggestedName);
+    void resized() override;
+
+    std::function<void (const juce::String&)> onSave;
+
+private:
+    juce::TextEditor nameEditor;
+    juce::TextButton saveButton { "Save" }, cancelButton { "Cancel" };
+    void commit();
+};
+
+// "Delete preset?" confirmation. Return confirms, Escape cancels.
+class DeletePresetPanel : public InlineDialog
+{
+public:
+    DeletePresetPanel();
+
+    void show (ThemeId, const juce::String& presetName, std::function<void()> onDelete);
+    void confirm();
+    juce::String getPresetName() const { return presetName; }
+
+    void paint (juce::Graphics&) override;
+    void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
+
+private:
+    juce::String presetName;
+    std::function<void()> onDelete;
+    juce::TextButton deleteButton { "Delete" }, cancelButton { "Cancel" };
+};
 
 class InstaShadowEditor : public juce::AudioProcessorEditor,
-                           public juce::Timer
+                          private juce::Timer,
+                          private juce::ChangeListener
 {
 public:
     explicit InstaShadowEditor (InstaShadowProcessor&);
     ~InstaShadowEditor() override;
 
-    void paint (juce::Graphics&) override;
     void resized() override;
-    void timerCallback() override;
+    void paint (juce::Graphics&) override;
+
+    void setTheme (ThemeId);
+    ThemeId getTheme() const { return theme; }
+
+    // ----- for tests -----
+    RepaintCounter meterRepaints;
+    int contentPaints = 0;              // Content::paint calls (copies of the cached background)
+    int backgroundRenders = 0;          // times the static background was drawn
+    int getTimerRate() const { return timerRate; }
+    void stepMetersForTest() { timerCallback(); }
+    juce::Component& getContent() { return content; }
+    DeletePresetPanel& getDeletePanel() { return deletePanel; }
+    void showPresetMenu();
+    void askToDeletePreset (int index);   // opens the confirmation for a user preset
+    void setMeterMode (MeterMode);
+
+    static constexpr int activeRate = 30;   // Hz while a meter moves (the ballistics are per tick)
+    static constexpr int idleRate = 8;      // Hz when all meters are at rest: polling only, no repaints
 
 private:
     InstaShadowProcessor& processor;
-    InstaShadowLookAndFeel lookAndFeel;
+    juce::AudioProcessorValueTreeState& state;
+    PresetManager& presets;
+    ThemeLookAndFeel lookAndFeel;
+    ThemeId theme = ThemeId::graphite;
 
-    // Top bar
-    juce::Label titleLabel;
-    juce::Label versionLabel;
-    juce::ToggleButton linkToggle;
-    juce::Label linkLabel;
-    juce::ToggleButton bypassToggle;
-    juce::Label bypassLabel;
+    // All controls live in a fixed 1000 x 540 component scaled to the window.
+    // The static background (panels, captions) is rendered once into an image
+    // at the screen's pixel scale; a meter or knob repaint only copies from it.
+    struct Content : public juce::Component
+    {
+        explicit Content (InstaShadowEditor& e) : owner (e) { setOpaque (true); }
+        void paint (juce::Graphics&) override;
+        void invalidateBackground() { background = {}; repaint(); }
+        InstaShadowEditor& owner;
+        juce::Image background;
+        float backgroundScale = 0.0f;
+    } content { *this };
 
-    // Side panels
-    OpticalPanel opticalPanel;
-    DiscretePanel discretePanel;
+    // Header
+    HeaderButton prevButton { HeaderButton::Kind::previous };
+    HeaderButton nameButton { HeaderButton::Kind::presetName };
+    HeaderButton nextButton { HeaderButton::Kind::next };
+    HeaderButton saveButton { HeaderButton::Kind::save };
+    HeaderButton compareA   { HeaderButton::Kind::compareA };
+    HeaderButton compareB   { HeaderButton::Kind::compareB };
+    ThemeSwatch swatches[numThemes] { ThemeSwatch (ThemeId::graphite), ThemeSwatch (ThemeId::console), ThemeSwatch (ThemeId::ivory) };
+    ThemedToggle linkToggle, bypassToggle;
 
-    // Center: needle meters + bar meters (swappable)
-    NeedleVuMeter needleMeterL;
-    NeedleVuMeter needleMeterR;
-    GRMeter barMeterL;
-    GRMeter barMeterR;
+    // Optical stage
+    ThemedToggle optoIn;
+    Knob optoThreshold, optoGain, optoHpf;
+    ValueLabel optoThresholdValue { optoThreshold }, optoGainValue { optoGain }, optoHpfValue { optoHpf };
+    NeedleMeter optoNeedle { "OPTICAL", "Optical" };
+    SegmentMeter optoSegments { Console::cyan };
 
-    // Meter swap toggle
-    juce::TextButton meterSwapButton { "GR / INPUT" };
-    bool metersSwapped = false;  // false: needle=GR, bar=input | true: needle=input, bar=GR
+    // Discrete stage
+    ThemedToggle vcaIn;
+    Knob vcaThreshold, vcaGain;
+    ValueLabel vcaThresholdValue { vcaThreshold }, vcaGainValue { vcaGain };
+    ChoiceSelector ratioSelector, attackSelector, releaseSelector;
+    NeedleMeter vcaNeedle { "DISCRETE", "Discrete" };
+    SegmentMeter vcaSegments { Console::orange };
 
-    // Bottom panels
-    TransformerPanel transformerPanel;
-    OutputPanel outputPanel;
+    // Transformer and output
+    TransformerSelector transformer;
+    Knob outGain;
+    ValueLabel outGainValue { outGain };
+    OutputMeter outMeter;
 
-    void syncKnobsToEngine();
-    void syncEngineFromKnobs();
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> knobAttachments;
+
+    SavePresetPanel savePanel;
+    DeletePresetPanel deletePanel;
+    juce::TooltipWindow tooltipWindow { this, 700 };
+
+    MeterMode meterMode = MeterMode::gainReduction;
+    uint32_t lastMeterSequence = 0;
+    int staleTicks = 0, idleTicks = 0;
+    int timerRate = 0;
+    bool constructed = false;
+
+    void paintContent (juce::Graphics&);
+    void paintGraphite (juce::Graphics&);
+    void paintConsole (juce::Graphics&);
+    void paintIvory (juce::Graphics&);
+
+    void layoutGraphite();
+    void layoutConsole();
+    void layoutIvory();
+
+    void setupKnob (Knob&, const char* paramID, std::function<juce::String (double)> formatter);
+    void updateKnobFormatters();
+    void updatePresetDisplay();
+    void showSavePanel();
+    void toggleMeterMode();
+    void resetMeters();
+    void setTimerRate (int hz);
+
+    void timerCallback() override;
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InstaShadowEditor)
 };

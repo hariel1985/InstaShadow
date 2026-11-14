@@ -41,6 +41,7 @@ public:
     std::atomic<float> inputLevelR      { 0.0f };
     std::atomic<float> outputLevelL     { 0.0f };
     std::atomic<float> outputLevelR     { 0.0f };
+    std::atomic<uint32_t> meterSequence { 0 };   // bumped once per processed block
 
     // Lookup tables
     static constexpr float ratios[]   = { 1.2f, 2.0f, 3.0f, 4.0f, 6.0f, 10.0f, 20.0f };
