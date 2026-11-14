@@ -551,7 +551,7 @@ void InstaShadowEditor::showPresetMenu()
     const auto& entries = presets.getEntries();
     auto current = presets.getCurrentIndex();
 
-    constexpr int saveId = 10000, folderId = 10001, deleteCurrentId = 10002, deleteBase = 20000;
+    static constexpr int saveId = 10000, folderId = 10001, deleteCurrentId = 10002, deleteBase = 20000;
 
     menu.addSectionHeader ("Factory presets");
     bool userHeader = false;
